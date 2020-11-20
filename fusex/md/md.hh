@@ -25,11 +25,13 @@
 #ifndef FUSE_MD_HH_
 #define FUSE_MD_HH_
 
+//#include "fusex/fusex.pb.h"
+//#include "proto_message_inheritor.hh"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include "llfusexx.hh"
-#include "fusex/fusex.pb.h"
 #include "backend/backend.hh"
 #include "common/Logging.hh"
 #include "common/RWMutex.hh"
@@ -54,11 +56,27 @@
 #include "utils/zmq.hpp"
 #endif
 
+template<class Proto> struct MDProtoMessageInheritor {
+  Proto data;
+  typedef Proto BaseProtoClass;
+  typedef MDProtoMessageInheritor<Proto> BaseProtoWrapper;
+
+  Proto *operator->() {
+    return &data;
+  }
+  const Proto *operator->() const {
+    return &data;
+  }
+
+  MDProtoMessageInheritor() {}
+  MDProtoMessageInheritor(const Proto &p): data(p) {}
+};
+
 class metad
 {
 public:
 
-  class mdx : public eos::fusex::md
+  class mdx : public MDProtoMessageInheritor<eos::fusex::md>
   //----------------------------------------------------------------------------
   {
   public:
@@ -85,7 +103,7 @@ public:
 
     mdx(fuse_ino_t ino) : mdx()
     {
-      set_id(ino);
+      data.set_id(ino);
     }
 
     mdx& operator=(const eos::fusex::md& other)
@@ -139,7 +157,7 @@ public:
     {
       // atomic operation, no need to lock before calling
       int prevLookup = lookup_cnt.fetch_add(1, std::memory_order_seq_cst);
-      eos_static_info("ino=%16x lookup=%d => lookup=%d", id(), prevLookup,
+      eos_static_info("ino=%16x lookup=%d => lookup=%d", data.id(), prevLookup,
                       prevLookup + 1);
     }
 
@@ -164,7 +182,7 @@ public:
     {
       // atomic operation, no need to lock before calling
       int prevOpendir = opendir_cnt.fetch_add(1, std::memory_order_seq_cst);
-      eos_static_info("ino=%16x opendir=%d => opendir=%d", id(), prevOpendir,
+      eos_static_info("ino=%16x opendir=%d => opendir=%d", data.id(), prevOpendir,
                       prevOpendir + 1);
     }
 
@@ -250,10 +268,10 @@ public:
     std::string Cookie()
     {
       char s[256];
-      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long) id(),
-               (unsigned long) mtime(),
-               (unsigned long) mtime_ns(),
-               (unsigned long) size());
+      snprintf(s, sizeof(s), "%lx:%lu.%lu:%lu", (unsigned long) data.id(),
+               (unsigned long) data.mtime(),
+               (unsigned long) data.mtime_ns(),
+               (unsigned long) data.size());
       return s;
     }
 
@@ -265,7 +283,7 @@ public:
     size_t sizeTS()
     {
       XrdSysMutexHelper lLock(mLock);
-      return size();
+      return data.size();
     }
 
     std::map<std::string, uint64_t>& local_children()
@@ -668,7 +686,7 @@ public:
   void mdreset() {
     XrdSysMutexHelper lock(mdmap);
     shared_md md1 = mdmap[1];
-    md1->set_type(md1->MD);
+    md1->data.set_type(md1->data.MD);
     md1->force_refresh();
     mdmap.clear();
     mdmap[1] = md1;

@@ -591,7 +591,7 @@ cap::qmap::get(shared_cap cap)
     shared_quota quota = (*this)[qid];
     if (!quota->writer()) {
       eos_static_notice("updating qnode=%s volume=%lu inodes=%lu", 
-			sqid, quota->volume_quota(), quota->inode_quota());
+			sqid, quota->data.volume_quota(), quota->data.inode_quota());
       // if there is no open file on that quota node, we can refresh from remo
       *quota = cap->_quota();
     }

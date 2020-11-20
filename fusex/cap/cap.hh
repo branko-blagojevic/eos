@@ -25,6 +25,9 @@
 #ifndef FUSE_CAP_HH_
 #define FUSE_CAP_HH_
 
+//#include "fusex/fusex.pb.h"
+#include "proto_message_inheritor.hh"
+
 #include <sys/stat.h>
 #include <sys/types.h>
 #include "llfusexx.hh"
@@ -45,13 +48,29 @@
 #define U_OK 128   // can update
 #define SU_OK 256  // set utimes
 
+template<class Proto> struct CAPProtoMessageInheritor {
+  Proto data;
+  typedef Proto BaseProtoClass;
+  typedef CAPProtoMessageInheritor<Proto> BaseProtoWrapper;
+
+  Proto *operator->() {
+    return &data;
+  }
+  const Proto *operator->() const {
+    return &data;
+  }
+
+  CAPProtoMessageInheritor() {}
+  CAPProtoMessageInheritor(const Proto &p): data(p) {}
+};
+
 class cap
 {
 public:
 
   //----------------------------------------------------------------------------
 
-  class quotax : public eos::fusex::quota
+  class quotax : public CAPProtoMessageInheritor<eos::fusex::quota>
   {
   public:
 
@@ -207,14 +226,14 @@ public:
   {
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
-    q->set_inode_quota(q->inode_quota() - 1);
+    q->data.set_inode_quota(q->data.inode_quota() - 1);
   }
 
   void free_inode(shared_cap cap)
   {
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
-    q->set_inode_quota(q->inode_quota() + 1);
+    q->data.set_inode_quota(q->data.inode_quota() + 1);
   }
 
   void book_volume(shared_cap cap, uint64_t size)
@@ -222,20 +241,20 @@ public:
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
 
-    if (size < q->volume_quota()) {
-      q->set_volume_quota(q->volume_quota() - size);
+    if (size < q->data.volume_quota()) {
+      q->data.set_volume_quota(q->data.volume_quota() - size);
     } else {
-      q->set_volume_quota(0);
+      q->data.set_volume_quota(0);
     }
 
-    eos_static_debug("volume=%llu", q->volume_quota());
+    eos_static_debug("volume=%llu", q->data.volume_quota());
   }
 
   void free_volume(shared_cap cap, uint64_t size)
   {
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
-    q->set_volume_quota(q->volume_quota() + size);
+    q->data.set_volume_quota(q->data.volume_quota() + size);
   }
 
   uint64_t has_quota(shared_cap cap, uint64_t size)
@@ -243,10 +262,10 @@ public:
     shared_quota q = quotamap.get(cap);
     XrdSysMutexHelper qLock(q->Locker());
 
-    if ((q->volume_quota() > size) &&
-        ((q->inode_quota() > 0) || (!size))) {
+    if ((q->data.volume_quota() > size) &&
+        ((q->data.inode_quota() > 0) || (!size))) {
       // it size is 0, we should not check for inodes
-      return q->volume_quota();
+      return q->data.volume_quota();
     }
 
     return 0;
@@ -258,7 +277,7 @@ public:
     XrdSysMutexHelper qLock(q->Locker());
 
     if (q) {
-      q->set_volume_quota(0);
+      q->data.set_volume_quota(0);
     }
   }
 
@@ -330,3 +349,4 @@ private:
 
 };
 #endif /* FUSE_CAP_HH_ */
+

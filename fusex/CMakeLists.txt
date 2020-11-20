@@ -74,6 +74,7 @@ set(EOSXD_COMMON_LINK_LIBRARIES
 # An object library prevents having to compile them twice.
 #-------------------------------------------------------------------------------
 add_library(eosxd-objects OBJECT
+  proto_message_inheritor.hh
   eosfuse.cc eosfuse.hh
   stat/Stat.cc stat/Stat.hh
   md/md.cc md/md.hh
